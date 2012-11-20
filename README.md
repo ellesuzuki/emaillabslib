@@ -30,5 +30,5 @@ Example use
     eg, {'First Name'=>some_customer_info_obj.first_name, 'Last Name'=>some_customer_info_obj.last_name}
   2. Instantiate an EmaillabsEmailRecord object with an e-mail address in a desired controller.
     eg, @current_record = Emaillabs::EmaillabsEmailRecord.new(some_customer_info_obj.email)
-  3. Call functions as needed from emailllabs_email_record
+  3. Call functions as needed from emaillabs_email_record
     eg, @current_record.subscribe
