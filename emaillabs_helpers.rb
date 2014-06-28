@@ -78,7 +78,7 @@ module EmaillabsHelpers
 
     ## custom exception(s)
     class HttpError < StandardError
-      def initialize()
+      def initialize
       end
     end
 
@@ -93,10 +93,10 @@ module EmaillabsHelpers
     #{error_msg}
 EOF
 
-    Net::SMTP.start('localhost') do |smtp|
-      smtp.send_message(msg, MSG_FR_ADDR, MSG_TO_ADDR)
-    smtp.finish
-    end #do
+      Net::SMTP.start('localhost') do |smtp|
+        smtp.send_message(msg, MSG_FR_ADDR, MSG_TO_ADDR)
+        smtp.finish
+      end
     end
 
 
@@ -117,11 +117,7 @@ EOF
     def EmaillabsHelpers.valid_email_format?(email_addr)
       # 1 or more of A-Za-z0-9_-, followed by 1 '@', followed by one or more groupings of at least 1 A-Za-z0-9_- and a dot, followed by 2 or 3 alphabet letters
       format_regex = Regexp.new('[\w\.-]+[@]{1}([\w-]+\.{1})+[A-Za-z]{2,3}') # at least 'a@a.aa', or 'a@a.a.aa'
-      if email_addr =~ format_regex
-        return true
-      else
-        return false
-      end
+      email_addr =~ format_regex ? true : false
     end
   
 end

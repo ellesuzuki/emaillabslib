@@ -22,14 +22,19 @@
 class Emaillabs::EmaillabsXmlPost
   
   attr_reader   :email  # no reason to change this!
-  attr_accessor :info_out, :activity, :xml_request, :http_resp, :doc, :root
+  attr_accessor :info_out,
+                :activity,
+                :xml_request,
+                :http_resp,
+                :doc,
+                :root
 
   require 'emaillabs/emaillabs_helpers'
 
 
   ## for xmlpost = XmlPost.new(email,other,activity)
   ## instantiate an xmlpost object for use by EmailRecord methods
-  def initialize(email,info,activity)
+  def initialize(email, info, activity)
     @email = email  # required!  validate method
     @info_out = info
     @activity = activity
@@ -43,13 +48,15 @@ class Emaillabs::EmaillabsXmlPost
   ## prepare xml results for quick reading by primary functions
   def post
     begin
-    @http_resp = Net::HTTP.start(EmaillabsHelpers::EMAILLABS_URL) { |http|
-      http.post(EmaillabsHelpers::EMAILLABS_PATH, "type=#{EmaillabsHelpers::TYPE}&activity=#{@activity}&input=" + URI.escape(@xml_request))}
-    rescue SocketError  #a domain does not exist or emaillabs farm server is down
-      error_msg="emaillabs server may be down, or domain does not exist.\n"
+    @http_resp = Net::HTTP.start(EmaillabsHelpers::EMAILLABS_URL) do |http|
+      http.post(EmaillabsHelpers::EMAILLABS_PATH, "type=#{EmaillabsHelpers::TYPE}&activity=#{@activity}&input=" + URI.escape(@xml_request))
+    end
+
+    rescue SocketError  # a domain does not exist or emaillabs farm server is down
+      error_msg = "emaillabs server may be down, or domain does not exist.\n"
       error_msg += "problem talking with url in Emaillabs::XmlPost post method.\n"
       error_msg += "add address #{@email} to MLID #{EmaillabsHelpers::MLID} manually.\n"
-      error_msg += "add info #{@info_out} manually." if @info_out != ''
+      error_msg += "add info #{@info_out} manually." if !@info_out.empty?
       EmaillabsHelpers::send_msg(error_msg)
       raise SocketError
     end
@@ -58,9 +65,9 @@ class Emaillabs::EmaillabsXmlPost
       error_msg = "http response (@http_resp) in Emaillabs::XmlPost post method returned a #{http_resp.class}.\n"
       error_msg += "check domain, server valid?\n"
       error_msg += "add address #{@email} to MLID #{EmaillabsHelpers::MLID} manually.\n"
-      error_msg += "add info #{@info_out} manually." if @info_out != ''
+      error_msg += "add info #{@info_out} manually." if !@info_out.empty?
       EmaillabsHelpers::send_msg(error_msg)
-      raise EmaillabsHelpers::HttpError.new(), caller       #caller should abort
+      raise EmaillabsHelpers::HttpError.new, caller       #caller should abort
     end
   end
   

@@ -21,7 +21,14 @@
 
 class Emaillabs::EmaillabsEmailRecord
 
-  attr_accessor :email, :info_in, :info_out, :activity, :xml_post, :resp_type, :resp_record, :resp_data
+  attr_accessor :email,
+                :info_in,
+                :info_out,
+                :activity,
+                :xml_post,
+                :resp_type,
+                :resp_record,
+                :resp_data
 
   require 'net/http'
   require 'uri'
@@ -33,86 +40,76 @@ class Emaillabs::EmaillabsEmailRecord
 
 
   ##----- EmailRecord class methods to use ----- //
-  def initialize(email='')
+  def initialize(email = '')
     @email = email    # required!  validate address format
     @info_in = {}    # check is hash
     @activity = ''
   end
 
-  ## find out if a record for the email address already exists in emaillabs
   def exists?
     @activity = 'query-data'
-    ## call get_record, and should be able to simply find out if exists
-    get_record()
+    get_record
+
     if @resp_type == 'success' or @resp_data[0] == "Email address already exists"  # from .get_record
-      return true
+      true
     elsif @resp_data[0] == "Unauthorized"
       error_msg = "http response #{@resp_data[0]} in Emaillabs::EmaillabsEmailRecord exists? method.\n"
       error_msg += "check api domains.\n"
       error_msg += "add address #{@email} to MLID #{EmaillabsHelpers::MLID} manually.\n"
-      error_msg += "add info #{@info_in} manually." if @info_in != ''
+      error_msg += "add info #{@info_in} manually." if !@info_in.empty?
       EmaillabsHelpers::send_msg(error_msg)
-      raise EmaillabsHelpers::HttpError.new(), caller   # caller should abort
+      raise EmaillabsHelpers::HttpError.new, caller   # caller should abort
     else
-      return false
+      false
     end
   end
   
-  ## find out if the email address is set as 'active' (subscribed) if in emaillabs
-  def is_subscribed?
+  def subscribed?
     @activity = 'query-data'
 
-    if exists? == true
-      if @xml_post.root.elements["RECORD/DATA[@id='state']"].text == 'active'    # from .parse
-        return true
-      else
-        return false
-      end
+    if exists?
+      (@xml_post.root.elements["RECORD/DATA[@id='state']"].text == 'active') ? true : false
     else
-      return false
+      false
     end
   end
 
-  def subscribe()
-    if is_subscribed? == false
+  def subscribe
+    if !subscribed?
       if exists?
-        @activity = 'update' #since exists and is_subscribed sets @activity to 'query-data'
+        @activity = 'update' # subscribed sets @activity to 'query-data'
         @info_in['state'] = 'active'
-      elsif exists? != true
+      elsif !exists?
         @activity = 'add'
       end
+
       build_demographics
       send_record
-    #do nothing if is_subscribed? == true
     end
   end
 
-  ## change record's state associated with email address to 'unsubscribed' if address is currently set to 'active' (aka, subscribed)
-  def unsubscribe()
-    if is_subscribed? == true
+  def unsubscribe
+    if subscribed?
       state = 'unsubscribed'
       @activity = 'update'
       @info_out = "<DATA type='extra' id='state'>#{state}</DATA>"
 
       send_record
     end
-    #do nothing if not even subscribed to begin with.  note, this is not the same thing as 'does not exist'.
   end
 
-  def add_info(info) # info is a hash
-    if exists?
+  def add_info(info)
+    if exists? # email record must first be created before info can be added
       @activity = 'update'
-      @info_in = info # might be {'First Name' => 'elizabeth','Last Name' => 'zimmerman','Shipping Zip' => '94710'}
+      @info_in = info # eg, {'First Name' => 'elizabeth', 'Last Name' => 'zimmerman', 'Shipping Zip' => '94710'}
       build_demographics
       send_record
-    ## no sense adding info to a record that does not yet exist.  email record must first be created.
     end
   end
 
 
   ##----- EmailRecord class helper methods ----- //
-  ## used by querying, non-altering methods only: exists?, is_subscribed?
-  def get_record()
+  def get_record
     begin
     @xml_post = Emaillabs::EmaillabsXmlPost.new(@email, @info_in, @activity)  # @info_in empty hash for query methods
 
@@ -120,11 +117,11 @@ class Emaillabs::EmaillabsEmailRecord
     @xml_post.post
     @xml_post.parse
 
-    # prep results from .parse for use by main primary methods
+    # prep results from .parse for use by primary methods
     @resp_type = ''
     @xml_post.root.elements.each('TYPE') { |e| @resp_type = e.text }
 
-    @resp_record =''
+    @resp_record = ''
     @xml_post.root.elements.each('RECORD') { |e| @resp_record = e }
 
     @resp_data = []
@@ -132,34 +129,33 @@ class Emaillabs::EmaillabsEmailRecord
     end
   end
   
-  ## used by methods that alter: update, add, unsubscribe
-  def send_record()
-    @xml_post = Emaillabs::EmaillabsXmlPost.new(@email,@info_out,@activity)
+  def send_record
+    @xml_post = Emaillabs::EmaillabsXmlPost.new(@email, @info_out, @activity)
 
     @xml_post.construct
     @xml_post.post
-    # include making sure the result was a success, and handle accordingly if was not
+
+    # TODO: make sure the result was a success, and handle accordingly if was not
   end
 
-  ## helper method
-  def build_demographics()
+  def build_demographics
     @info_out = ''
     
     if !@info_in.empty?
-      for each_demog in @info_in.keys # might have one pair, or more pairs; eg, {'First Name' => 'ruby','Last Name' => 'smith'}
+      for each_demog in @info_in.keys # might have one pair, or more pairs; eg, {'First Name' => 'ruby', 'Last Name' => 'smith'}
         if EmaillabsHelpers::DATA_TYPE_DEMOG.keys.include?(each_demog)
           data_type = 'demographic'
           data_id = EmaillabsHelpers::DATA_TYPE_DEMOG[each_demog]
           data_val = @info_in[each_demog]
-        elsif EmaillabsHelpers::DATA_TYPE_EXTRA.include?(each_demog) #an array, not a hash
+        elsif EmaillabsHelpers::DATA_TYPE_EXTRA.include?(each_demog) # an array, not a hash
           data_type = 'extra'
           data_id = each_demog
           data_val = @info_in[each_demog]
         end
-      @info_out += "<DATA type='"+"#{data_type}"+"'"+" id='"+"#{data_id}"+"'"+">#{data_val}</DATA>"
-      end # for
-    end # if
-    
+
+        @info_out += "<DATA type='"+"#{data_type}"+"'"+" id='"+"#{data_id}"+"'"+">#{data_val}</DATA>"
+      end
+    end
   end
   
 end
